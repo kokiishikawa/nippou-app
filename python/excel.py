@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-EXCEL_PATH = os.environ['EXCEL_PATH']
+EXCEL_PATH = os.environ.get('EXCEL_PATH', '')
 TEMPLATE_SHEET = "テンプレート"
 
 def export_to_excel(report: dict):
