@@ -4,6 +4,7 @@
 # --- 標準ライブラリ ---
 import os
 import time
+import pathlib
 
 # --- サードパーティ ---
 import pytest
@@ -19,6 +20,7 @@ from excel import delete_sheet_excel
 
 
 client = TestClient(app)
+TEST_EXCEL_PATH = str(pathlib.Path(__file__).parent / "test_data" / "研修日報（石川幸紀）.xlsx")
 
 
 @pytest.fixture(autouse=True)
@@ -107,12 +109,16 @@ def test_update_report_updates_timestamp():
 
 def test_export_nippou():
     """POST /nippou/{date}/export: Excelファイルに日報を書き込める"""
+    original = excel.EXCEL_PATH
+    excel.EXCEL_PATH = TEST_EXCEL_PATH
+
     client.post("/nippou", json=sample_report)
     response = client.post(f"/nippou/{sample_report['date']}/export")
     try:
         assert response.status_code == 200
     finally:
         delete_sheet_excel(sample_report["date"])
+        excel.EXCEL_PATH = original
 
 
 # --- 異常系 ---
