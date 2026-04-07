@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from datetime import datetime, timezone, timedelta
 from database import init_db, get_connection
 from models import NippouCreate, NippouResponse
+from excel import export_to_excel
 
 app = FastAPI()
 
@@ -10,7 +11,7 @@ init_db()
 @app.post("/nippou", response_model=NippouResponse)
 def create_nippou(body: NippouCreate):
     JST = timezone(timedelta(hours=9))
-    now = datetime.now(JST).isoformat()
+    now = datetime.now(JST).strftime('%Y-%m-%d %H:%M:%S')
 
     conn = get_connection()
     try:
@@ -59,7 +60,7 @@ def get_nippou_by_date(date: str):
 @app.put("/nippou/{date}", response_model=NippouResponse)
 def put_nippou(date: str, body: NippouCreate):
     JST = timezone(timedelta(hours=9))
-    now = datetime.now(JST).isoformat()
+    now = datetime.now(JST).strftime('%Y-%m-%d %H:%M:%S')
 
     conn = get_connection()
     try:
@@ -90,3 +91,25 @@ def put_nippou(date: str, body: NippouCreate):
         "SELECT * FROM daily_reports WHERE date = ?", (date,)
     ).fetchone()
     return dict(row)
+
+@app.post("/nippou/{date}/export")
+def export_nippou(date: str):
+    conn = get_connection()
+
+    try:
+        cursor = conn.execute(
+            """
+            SELECT date, timeblock, theme, details, tomorrow, note FROM daily_reports WHERE date = ?
+            """,
+        (date, )).fetchone()
+        if cursor is None:
+            raise HTTPException(status_code=404, detail="日報が見つかりません")
+        export_to_excel(dict(cursor))
+    except FileNotFoundError:
+        raise HTTPException(status_code=500, detail="Excelファイルが見つかりませんでした。")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=500, detail="データ取得失敗")
+    finally:
+        conn.close()
